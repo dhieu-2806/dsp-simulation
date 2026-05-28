@@ -107,7 +107,7 @@ def create_plot(plot_func, title, xlabel="Thời gian (s)", ylabel="Biên độ"
     
     # Ép khoảng viền đồ thị nhỏ lại một chút để không bị cắt lẹm chú thích phía trên
     fig.tight_layout(rect=[0, 0, 1, 0.95]) 
-    return figg
+    return fig
 
 tabs = st.tabs(["Gốc vs Khôi phục", "Lấy mẫu", "Sai số & SNR", "Phổ 1 phía", "Phổ 2 phía"])
 
