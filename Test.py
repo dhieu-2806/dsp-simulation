@@ -30,7 +30,9 @@ with st.expander("📖 Xem giải thích lý thuyết & Công thức toán học
 # ==========================================
 @st.cache_data
 def calculate_signals(f_sig, f_samp, wave_type):
-    t_cont = np.linspace(0, 1, 1000)
+    # Tự động điều chỉnh số lượng điểm lấy mẫu đồ họa để đường nét luôn mịn ở tần số cao
+    num_points = int(max(1000, 20 * max(f_sig, f_samp)))
+    t_cont = np.linspace(0, 1, num_points)
     
     if wave_type == 'Sin':
         x_cont = np.cos(2 * np.pi * f_sig * t_cont)
@@ -62,19 +64,20 @@ def calculate_signals(f_sig, f_samp, wave_type):
     return t_cont, x_cont, t_disc, x_disc, x_recon, freqs[pos_mask], fft_vals[pos_mask]
 
 # ==========================================
-# ĐIỀU KHIỂN (SIDEBAR)
+# ĐIỀU KHIỂN (SIDEBAR) VỚI NUMBER INPUT
 # ==========================================
 st.sidebar.markdown("### ⚙️ Bảng Điều Khiển")
 wave_type = st.sidebar.radio('1. Chọn loại sóng', ('Sin', 'Vuông', 'Tam giác'))
-f_sig = st.sidebar.slider('2. Tần số tín hiệu (Hz)', 1.0, 20.0, 2.0, step=1.0)
-f_samp = st.sidebar.slider('3. Tần số lấy mẫu (Hz)', 2.0, 100.0, 20.0, step=1.0)
+
+# Nâng cấp lên Number Input để nhập số chính xác tuyệt đối
+f_sig = st.sidebar.number_input('2. Tần số tín hiệu (Hz)', min_value=1.0, max_value=5000.0, value=2.0, step=0.5, format="%.1f")
+f_samp = st.sidebar.number_input('3. Tần số lấy mẫu (Hz)', min_value=2.0, max_value=10000.0, value=20.0, step=1.0, format="%.1f")
 
 t_c, x_c, t_d, x_d, x_r, freqs, fft_vals = calculate_signals(f_sig, f_samp, wave_type)
 
 # ==========================================
-# VẼ BIỂU ĐỒ (ĐÃ VÁ LỖI MÀU SẮC STEM)
+# VẼ BIỂU ĐỒ 
 # ==========================================
-# Bảng màu Hex hiện đại cho biểu đồ liên tục và Tiêu đề
 COLOR_ORIGINAL = '#2E86AB'  
 COLOR_RECON = '#388659'     
 
@@ -93,7 +96,7 @@ ax1.set_title('1. Tín hiệu gốc liên tục: $x(t)$', fontweight='bold', col
 ax1.set_xlim(0, 1)
 ax1.set_ylim(-1.5, 1.5)
 
-# Biểu đồ 2 (Sử dụng 'r-' thay vì mã Hex)
+# Biểu đồ 2 
 ax2.stem(t_d, x_d, linefmt='r-', markerfmt='ro', basefmt='k-')
 ax2.set_title('2. Tín hiệu sau lấy mẫu: $x(nT)$', fontweight='bold', color='#D63230')
 ax2.set_xlim(0, 1)
@@ -105,7 +108,7 @@ ax3.set_title('3. Tín hiệu khôi phục lý tưởng (Nội suy Sinc): $x_r(t
 ax3.set_xlim(0, 1)
 ax3.set_ylim(-1.5, 1.5)
 
-# Biểu đồ 4 (Sử dụng 'm-' thay vì mã Hex)
+# Biểu đồ 4 
 ax4.stem(freqs, fft_vals, linefmt='m-', markerfmt='mo', basefmt='k-')
 ax4.set_title('4. Phổ tần số của tín hiệu lấy mẫu (FFT)', fontweight='bold', color='#8A4F7D')
 ax4.set_xlim(-1, max(f_samp, f_sig * 3))
