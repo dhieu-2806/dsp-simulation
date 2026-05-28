@@ -3,14 +3,31 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
 
-# Cài đặt giao diện trang web
-st.set_page_config(page_title="Mô phỏng DSP", layout="wide")
-st.title("Mô phỏng DSP: Lấy mẫu & Phổ Tần Số")
+# ==========================================
+# CẤU HÌNH TRANG WEB
+# ==========================================
+st.set_page_config(page_title="Đồ án Mô phỏng DSP", page_icon="🎛️", layout="wide")
+
+# Header chuyên nghiệp
+st.markdown("<h4 style='text-align: center; color: #154c79;'>ĐẠI HỌC BÁCH KHOA ĐHQG-HCM</h4>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>🎛️ Đồ án DSP: Lấy mẫu & Khôi phục Tín hiệu</h1>", unsafe_allow_html=True)
+st.markdown("---")
 
 # ==========================================
-# 1. HÀM TÍNH TOÁN LÕI (Giữ nguyên của bạn)
+# KHU VỰC LÝ THUYẾT & CÔNG THỨC (Gập/Mở)
 # ==========================================
-# Dùng @st.cache_data để tối ưu tốc độ tính toán lại nếu thông số không đổi
+with st.expander("📖 Xem giải thích lý thuyết & Công thức toán học"):
+    st.markdown("**1. Định lý lấy mẫu Nyquist-Shannon:**")
+    st.markdown("Để khôi phục lại tín hiệu gốc mà không bị hiện tượng chồng phổ (Aliasing), tần số lấy mẫu ($f_s$) phải lớn hơn hoặc bằng hai lần tần số cực đại của tín hiệu ($f_{max}$).")
+    st.latex(r"f_s \ge 2f_{max}")
+    
+    st.markdown("**2. Khôi phục tín hiệu lý tưởng (Sinc Interpolation):**")
+    st.markdown("Tín hiệu liên tục được khôi phục từ các mẫu rời rạc bằng cách chập chuỗi xung mẫu với hàm Sinc lý tưởng.")
+    st.latex(r"x_r(t) = \sum_{n=-\infty}^{\infty} x(nT) \cdot \text{sinc}\left(\frac{t - nT}{T_s}\right)")
+
+# ==========================================
+# HÀM TÍNH TOÁN LÕI 
+# ==========================================
 @st.cache_data
 def calculate_signals(f_sig, f_samp, wave_type):
     t_cont = np.linspace(0, 1, 1000)
@@ -40,61 +57,60 @@ def calculate_signals(f_sig, f_samp, wave_type):
     N = len(x_disc)
     freqs = np.fft.fftfreq(N, T_s)
     fft_vals = np.abs(np.fft.fft(x_disc)) / N
-    
     pos_mask = freqs >= 0
     
     return t_cont, x_cont, t_disc, x_disc, x_recon, freqs[pos_mask], fft_vals[pos_mask]
 
 # ==========================================
-# 2. KHU VỰC ĐIỀU KHIỂN (SIDEBAR)
+# ĐIỀU KHIỂN (SIDEBAR)
 # ==========================================
-st.sidebar.header("Thông số cài đặt")
-wave_type = st.sidebar.radio('Loại sóng', ('Sin', 'Vuông', 'Tam giác'))
-f_sig = st.sidebar.slider('Tần số tín hiệu (Hz)', 1.0, 20.0, 2.0, step=1.0)
-f_samp = st.sidebar.slider('Tần số lấy mẫu (Hz)', 2.0, 100.0, 20.0, step=1.0)
+st.sidebar.markdown("### ⚙️ Bảng Điều Khiển")
+wave_type = st.sidebar.radio('1. Chọn loại sóng', ('Sin', 'Vuông', 'Tam giác'))
+f_sig = st.sidebar.slider('2. Tần số tín hiệu (Hz)', 1.0, 20.0, 2.0, step=1.0)
+f_samp = st.sidebar.slider('3. Tần số lấy mẫu (Hz)', 2.0, 100.0, 20.0, step=1.0)
 
-# ==========================================
-# 3. GỌI HÀM TÍNH TOÁN
-# ==========================================
 t_c, x_c, t_d, x_d, x_r, freqs, fft_vals = calculate_signals(f_sig, f_samp, wave_type)
 
 # ==========================================
-# 4. VẼ BIỂU ĐỒ BẰNG MATPLOTLIB
+# VẼ BIỂU ĐỒ (ĐÃ VÁ LỖI MÀU SẮC STEM)
 # ==========================================
-fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(10, 12))
-plt.subplots_adjust(hspace=0.5) 
+# Bảng màu Hex hiện đại cho biểu đồ liên tục và Tiêu đề
+COLOR_ORIGINAL = '#2E86AB'  
+COLOR_RECON = '#388659'     
+
+fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 14))
+plt.subplots_adjust(hspace=0.6) 
+
+# Cấu hình chung cho lưới (Grid)
+for ax in (ax1, ax2, ax3, ax4):
+    ax.grid(True, linestyle='--', alpha=0.5)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
 # Biểu đồ 1
-ax1.plot(t_c, x_c, 'b-', linewidth=2)
-ax1.set_title('1. Tín hiệu gốc liên tục: $x(t)$', fontweight='bold')
+ax1.plot(t_c, x_c, color=COLOR_ORIGINAL, linewidth=2.5)
+ax1.set_title('1. Tín hiệu gốc liên tục: $x(t)$', fontweight='bold', color=COLOR_ORIGINAL)
 ax1.set_xlim(0, 1)
 ax1.set_ylim(-1.5, 1.5)
-ax1.grid(True)
 
-# Biểu đồ 2
+# Biểu đồ 2 (Sử dụng 'r-' thay vì mã Hex)
 ax2.stem(t_d, x_d, linefmt='r-', markerfmt='ro', basefmt='k-')
-ax2.set_title('2. Tín hiệu sau lấy mẫu: $x(nT)$', fontweight='bold')
+ax2.set_title('2. Tín hiệu sau lấy mẫu: $x(nT)$', fontweight='bold', color='#D63230')
 ax2.set_xlim(0, 1)
 ax2.set_ylim(-1.5, 1.5)
-ax2.grid(True)
 
 # Biểu đồ 3
-ax3.plot(t_c, x_r, 'g-', linewidth=2)
-ax3.set_title('3. Tín hiệu khôi phục lý tưởng: $x_r(t)$', fontweight='bold')
+ax3.plot(t_c, x_r, color=COLOR_RECON, linewidth=2.5)
+ax3.set_title('3. Tín hiệu khôi phục lý tưởng (Nội suy Sinc): $x_r(t)$', fontweight='bold', color=COLOR_RECON)
 ax3.set_xlim(0, 1)
 ax3.set_ylim(-1.5, 1.5)
-ax3.grid(True)
 
-# Biểu đồ 4
+# Biểu đồ 4 (Sử dụng 'm-' thay vì mã Hex)
 ax4.stem(freqs, fft_vals, linefmt='m-', markerfmt='mo', basefmt='k-')
-ax4.set_title('4. Phổ tần số của tín hiệu lấy mẫu (FFT)', fontweight='bold')
+ax4.set_title('4. Phổ tần số của tín hiệu lấy mẫu (FFT)', fontweight='bold', color='#8A4F7D')
 ax4.set_xlim(-1, max(f_samp, f_sig * 3))
 ax4.set_ylim(0, 1.2)
-ax4.set_xlabel('Tần số (Hz)')
-ax4.set_ylabel('Biên độ')
-ax4.grid(True)
+ax4.set_xlabel('Tần số (Hz)', fontstyle='italic')
+ax4.set_ylabel('Biên độ', fontstyle='italic')
 
-# ==========================================
-# 5. HIỂN THỊ LÊN TRÌNH DUYỆT
-# ==========================================
 st.pyplot(fig)
