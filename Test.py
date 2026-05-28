@@ -2,23 +2,29 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
+import pandas as pd
 
 # ==========================================
-# CẤU HÌNH TRANG WEB
+# 1. CẤU HÌNH TRANG WEB & HEADER 
 # ==========================================
 st.set_page_config(page_title="Đồ án Mô phỏng DSP", page_icon="🎛️", layout="wide")
 
-# Header chuyên nghiệp
-st.markdown("<h4 style='text-align: center; color: #154c79;'>ĐẠI HỌC BÁCH KHOA ĐHQG-HCM</h4>", unsafe_allow_html=True)
-st.markdown("<h1 style='text-align: center;'>🎛️ Đồ án DSP: Lấy mẫu & Khôi phục Tín hiệu</h1>", unsafe_allow_html=True)
+col_logo, col_title = st.columns([1, 6])
+with col_logo:
+    # Logo Bách Khoa
+    st.image("https://hcmut.edu.vn/img/nhanDienThuongHieu/01_logobk_mau.png", width=120)
+
+with col_title:
+    st.markdown("<h4 style='color: #154c79; margin-bottom: 0px;'>ĐẠI HỌC BÁCH KHOA ĐHQG-HCM</h4>", unsafe_allow_html=True)
+    st.markdown("<h1 style='margin-top: 0px;'>🎛️ Đồ án DSP: Lấy mẫu & Khôi phục Tín hiệu</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
 # ==========================================
-# KHU VỰC LÝ THUYẾT & CÔNG THỨC (Gập/Mở)
+# 2. KHU VỰC LÝ THUYẾT & CÔNG THỨC 
 # ==========================================
 with st.expander("📖 Xem giải thích lý thuyết & Công thức toán học"):
     st.markdown("**1. Định lý lấy mẫu Nyquist-Shannon:**")
-    st.markdown("Để khôi phục lại tín hiệu gốc mà không bị hiện tượng chồng phổ (Aliasing), tần số lấy mẫu ($f_s$) phải lớn hơn hoặc bằng hai lần tần số cực đại của tín hiệu ($f_{max}$).")
+    st.markdown("Để khôi phục lại tín hiệu gốc mà không bị hiện tượng chồng phổ, tần số lấy mẫu ($f_s$) phải lớn hơn hoặc bằng hai lần tần số cực đại của tín hiệu ($f_{max}$).")
     st.latex(r"f_s \ge 2f_{max}")
     
     st.markdown("**2. Khôi phục tín hiệu lý tưởng (Sinc Interpolation):**")
@@ -26,11 +32,10 @@ with st.expander("📖 Xem giải thích lý thuyết & Công thức toán học
     st.latex(r"x_r(t) = \sum_{n=-\infty}^{\infty} x(nT) \cdot \text{sinc}\left(\frac{t - nT}{T_s}\right)")
 
 # ==========================================
-# HÀM TÍNH TOÁN LÕI 
+# 3. HÀM TÍNH TOÁN LÕI 
 # ==========================================
 @st.cache_data
 def calculate_signals(f_sig, f_samp, wave_type):
-    # Tự động điều chỉnh số lượng điểm lấy mẫu đồ họa để đường nét luôn mịn ở tần số cao
     num_points = int(max(1000, 20 * max(f_sig, f_samp)))
     t_cont = np.linspace(0, 1, num_points)
     
@@ -64,56 +69,106 @@ def calculate_signals(f_sig, f_samp, wave_type):
     return t_cont, x_cont, t_disc, x_disc, x_recon, freqs[pos_mask], fft_vals[pos_mask]
 
 # ==========================================
-# ĐIỀU KHIỂN (SIDEBAR) VỚI NUMBER INPUT
+# 4. BẢNG ĐIỀU KHIỂN (SIDEBAR)
 # ==========================================
 st.sidebar.markdown("### ⚙️ Bảng Điều Khiển")
 wave_type = st.sidebar.radio('1. Chọn loại sóng', ('Sin', 'Vuông', 'Tam giác'))
 
-# Nâng cấp lên Number Input để nhập số chính xác tuyệt đối
 f_sig = st.sidebar.number_input('2. Tần số tín hiệu (Hz)', min_value=1.0, max_value=5000.0, value=2.0, step=0.5, format="%.1f")
 f_samp = st.sidebar.number_input('3. Tần số lấy mẫu (Hz)', min_value=2.0, max_value=10000.0, value=20.0, step=1.0, format="%.1f")
 
 t_c, x_c, t_d, x_d, x_r, freqs, fft_vals = calculate_signals(f_sig, f_samp, wave_type)
 
 # ==========================================
-# VẼ BIỂU ĐỒ 
+# 5. HỆ THỐNG CẢNH BÁO NYQUIST
+# ==========================================
+st.markdown("### 📊 Phân tích Thông số Lấy mẫu")
+nyquist_req = 2 * f_sig
+col1, col2, col3 = st.columns(3)
+
+col1.metric(label="Tần số tín hiệu", value=f"{f_sig} Hz")
+col2.metric(label="Tần số lấy mẫu", value=f"{f_samp} Hz")
+col3.metric(label="Tần số Nyquist yêu cầu", value=f"{nyquist_req} Hz", delta=f"{f_samp - nyquist_req} Hz")
+
+if f_samp >= nyquist_req:
+    st.success("✅ THỎA MÃN NYQUIST: Không xảy ra hiện tượng chồng phổ (Aliasing).")
+else:
+    st.error("🚨 CẢNH BÁO ALIASING: Tần số lấy mẫu thấp hơn ngưỡng Nyquist! Tín hiệu khôi phục sẽ bị biến dạng.")
+st.markdown("---")
+
+# ==========================================
+# 6. HIỂN THỊ BIỂU ĐỒ THEO TỪNG TAB RIÊNG BIỆT
 # ==========================================
 COLOR_ORIGINAL = '#2E86AB'  
 COLOR_RECON = '#388659'     
 
-fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 14))
-plt.subplots_adjust(hspace=0.6) 
+# Khởi tạo 4 Tabs
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📈 1. Tín hiệu gốc", 
+    "📍 2. Tín hiệu lấy mẫu", 
+    "🔄 3. Khôi phục tín hiệu", 
+    "📊 4. Phổ tần số (FFT)"
+])
 
-# Cấu hình chung cho lưới (Grid)
-for ax in (ax1, ax2, ax3, ax4):
+def setup_axis(ax):
+    """Hàm phụ trợ làm đẹp lưới đồ thị"""
     ax.grid(True, linestyle='--', alpha=0.5)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-# Biểu đồ 1
-ax1.plot(t_c, x_c, color=COLOR_ORIGINAL, linewidth=2.5)
-ax1.set_title('1. Tín hiệu gốc liên tục: $x(t)$', fontweight='bold', color=COLOR_ORIGINAL)
-ax1.set_xlim(0, 1)
-ax1.set_ylim(-1.5, 1.5)
+# --- Tab 1: Tín hiệu gốc ---
+with tab1:
+    fig1, ax1 = plt.subplots(figsize=(12, 4)) # Vẽ khung hình chữ nhật nằm ngang cho đẹp
+    ax1.plot(t_c, x_c, color=COLOR_ORIGINAL, linewidth=2.5)
+    ax1.set_title('Tín hiệu gốc liên tục: $x(t)$', fontweight='bold', color=COLOR_ORIGINAL)
+    ax1.set_xlim(0, 1)
+    ax1.set_ylim(-1.5, 1.5)
+    setup_axis(ax1)
+    st.pyplot(fig1)
 
-# Biểu đồ 2 
-ax2.stem(t_d, x_d, linefmt='r-', markerfmt='ro', basefmt='k-')
-ax2.set_title('2. Tín hiệu sau lấy mẫu: $x(nT)$', fontweight='bold', color='#D63230')
-ax2.set_xlim(0, 1)
-ax2.set_ylim(-1.5, 1.5)
+# --- Tab 2: Lấy mẫu ---
+with tab2:
+    fig2, ax2 = plt.subplots(figsize=(12, 4))
+    ax2.stem(t_d, x_d, linefmt='r-', markerfmt='ro', basefmt='k-')
+    ax2.set_title('Tín hiệu sau khi lấy mẫu: $x(nT)$', fontweight='bold', color='#D63230')
+    ax2.set_xlim(0, 1)
+    ax2.set_ylim(-1.5, 1.5)
+    setup_axis(ax2)
+    st.pyplot(fig2)
 
-# Biểu đồ 3
-ax3.plot(t_c, x_r, color=COLOR_RECON, linewidth=2.5)
-ax3.set_title('3. Tín hiệu khôi phục lý tưởng (Nội suy Sinc): $x_r(t)$', fontweight='bold', color=COLOR_RECON)
-ax3.set_xlim(0, 1)
-ax3.set_ylim(-1.5, 1.5)
+# --- Tab 3: Khôi phục ---
+with tab3:
+    fig3, ax3 = plt.subplots(figsize=(12, 4))
+    ax3.plot(t_c, x_r, color=COLOR_RECON, linewidth=2.5)
+    ax3.set_title('Tín hiệu khôi phục lý tưởng (Nội suy Sinc): $x_r(t)$', fontweight='bold', color=COLOR_RECON)
+    ax3.set_xlim(0, 1)
+    ax3.set_ylim(-1.5, 1.5)
+    setup_axis(ax3)
+    st.pyplot(fig3)
 
-# Biểu đồ 4 
-ax4.stem(freqs, fft_vals, linefmt='m-', markerfmt='mo', basefmt='k-')
-ax4.set_title('4. Phổ tần số của tín hiệu lấy mẫu (FFT)', fontweight='bold', color='#8A4F7D')
-ax4.set_xlim(-1, max(f_samp, f_sig * 3))
-ax4.set_ylim(0, 1.2)
-ax4.set_xlabel('Tần số (Hz)', fontstyle='italic')
-ax4.set_ylabel('Biên độ', fontstyle='italic')
+# --- Tab 4: Phổ FFT ---
+with tab4:
+    fig4, ax4 = plt.subplots(figsize=(12, 4))
+    ax4.stem(freqs, fft_vals, linefmt='m-', markerfmt='mo', basefmt='k-')
+    ax4.set_title('Phổ tần số của tín hiệu (Thuật toán FFT)', fontweight='bold', color='#8A4F7D')
+    ax4.set_xlim(-1, max(f_samp, f_sig * 3))
+    ax4.set_ylim(0, 1.2)
+    ax4.set_xlabel('Tần số (Hz)', fontstyle='italic')
+    ax4.set_ylabel('Biên độ', fontstyle='italic')
+    setup_axis(ax4)
+    st.pyplot(fig4)
 
-st.pyplot(fig)
+# ==========================================
+# 7. NÚT XUẤT DỮ LIỆU BÁO CÁO (CSV)
+# ==========================================
+st.markdown("---")
+st.markdown("### 💾 Xuất Dữ liệu Phân tích")
+df_fft = pd.DataFrame({'Tần số (Hz)': freqs, 'Biên độ': fft_vals})
+csv = df_fft.to_csv(index=False).encode('utf-8')
+
+st.download_button(
+    label="📥 Tải tập dữ liệu Phổ tần số (FFT) dạng .CSV",
+    data=csv,
+    file_name='Du_lieu_FFT.csv',
+    mime='text/csv',
+)
