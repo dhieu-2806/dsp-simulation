@@ -7,15 +7,8 @@ import pandas as pd
 # ==========================================
 # 1. CẤU HÌNH & GIAO DIỆN CHUNG
 # ==========================================
-st.set_page_config(page_title="Mô phỏng lấy mẫu", page_icon="🎛️", layout="wide")
-st.markdown("<h1 style='text-align: center; margin-bottom: 0;'>🎛️ Mô phỏng lấy mẫu và khôi phục</h1><hr>", unsafe_allow_html=True)
-
-with st.expander("📖 Xem giải thích lý thuyết & Công thức"):
-    c1, c2, c3, c4 = st.columns(4)
-    c1.markdown("**Nyquist:**\n$f_s \\ge 2 f_{max}$")
-    c2.markdown("**Nội suy Sinc:**\n$x_r(t) = \\sum x(nT_s)\\cdot \\mathrm{sinc}(\\frac{t - nT_s}{T_s})$")
-    c3.markdown("**FFT:**\n$X[k] = \\sum x[n]\\, e^{-j2\\pi kn/N}$")
-    c4.markdown("**SNR:**\n$\\mathrm{SNR} = 10\\log_{10}(\\frac{\\sum x^2}{\\sum (x-x_r)^2})$")
+st.set_page_config(page_title="Mô phỏng lấy mẫu", layout="wide")
+st.markdown("<h2 style='text-align: center;'>Mô phỏng Lấy mẫu và Khôi phục Tín hiệu</h2><hr>", unsafe_allow_html=True)
 
 # ==========================================
 # 2. HÀM TÍNH TOÁN LÕI 
@@ -25,7 +18,6 @@ def calculate_signals(f_sig, f_samp, wave_type):
     t_cont = np.linspace(0, 1, 2000)
     T_s = 1.0 / f_samp
     
-    # Boundary padding để tránh méo biên
     pad = min(int(f_samp), 50)
     t_disc_pad = np.arange(-pad * T_s, 1 + (pad + 1) * T_s, T_s)
     t_disc = np.arange(0, 1 + T_s, T_s)
@@ -57,10 +49,10 @@ def calculate_signals(f_sig, f_samp, wave_type):
 # 3. SIDEBAR & METRICS
 # ==========================================
 with st.sidebar:
-    st.markdown("### ⚙️ Bảng Điều Khiển")
+    st.markdown("### Bảng Điều Khiển")
     wave_type = st.radio("1. Chọn loại sóng", ("Sin", "Vuông", "Tam giác"))
     f_sig  = st.number_input("2. Tần số tín hiệu (Hz)", 1.0, 50.0, 2.0, 0.5)
-    f_samp = st.number_input("3. Tần số lấy mẫu (Hz)", 2.0, 300.0, 20.0, 1.0) # Đã giới hạn max_value để chống treo
+    f_samp = st.number_input("3. Tần số lấy mẫu (Hz)", 2.0, 300.0, 20.0, 1.0)
 
 t_c, x_c, t_d, x_d, x_r, err, mse, snr, f_pos, fft_pos, f_two, fft_two = calculate_signals(f_sig, f_samp, wave_type)
 
@@ -74,71 +66,71 @@ cols[1].metric("Tần số lấy mẫu", f"{f_samp} Hz")
 cols[2].metric("Nyquist yêu cầu", f"{req_nyq} Hz", f"{f_samp - req_nyq:+.1f} Hz", "normal" if not alias else "inverse")
 cols[3].metric("SNR khôi phục", f"{snr:.1f} dB", "Tốt" if snr > 20 else "Kém", "normal" if snr > 20 else "inverse")
 
-if not alias: st.success(f"✅ **THỎA MÃN NYQUIST** — Không xảy ra Aliasing. SNR = {snr:.1f} dB.")
-else: st.error(f"🚨 **ALIASING NGHIÊM TRỌNG** — Tín hiệu bị biến dạng. SNR = {snr:.1f} dB.")
+if not alias: 
+    st.success(f"THỎA MÃN NYQUIST — Không xảy ra hiện tượng chồng phổ. SNR = {snr:.1f} dB.")
+else: 
+    st.error(f"CẢNH BÁO ALIASING — Tín hiệu bị biến dạng. SNR = {snr:.1f} dB.")
 
 # ==========================================
-# 4. BIỂU ĐỒ (Dùng Helper Function để tránh lặp code)
+# 4. BIỂU ĐỒ & TRỰC QUAN HÓA
 # ==========================================
 def create_plot(plot_func, title, xlabel="Thời gian (s)", ylabel="Biên độ", xlim=(0, 1), ylim=(-1.6, 1.6)):
-    fig, ax = plt.subplots(figsize=(10, 3.5))
+    fig, ax = plt.subplots(figsize=(12, 3.5))
     plot_func(ax)
     ax.set(title=title, xlabel=xlabel, ylabel=ylabel, xlim=xlim, ylim=ylim)
     ax.grid(True, ls='--', alpha=0.4)
     ax.spines[['top', 'right']].set_visible(False)
     if ax.get_legend_handles_labels()[0]: ax.legend(fontsize=9, loc='upper right')
+    fig.tight_layout()
     return fig
 
-tabs = st.tabs(["📈 Gốc vs Khôi phục", "📍 Lấy mẫu", "📉 Sai số & SNR", "📊 Phổ 1 phía", "🔁 Phổ 2 phía"])
+tabs = st.tabs(["Gốc vs Khôi phục", "Lấy mẫu", "Sai số & SNR", "Phổ 1 phía", "Phổ 2 phía"])
 
 with tabs[0]:
     st.pyplot(create_plot(lambda ax: [
-        ax.plot(t_c, x_c, '#2E86AB', lw=2.5, label='Gốc $x(t)$', zorder=3),
-        ax.plot(t_c, x_r, '#388659', lw=2, ls='--', label='Khôi phục $x_r(t)$', zorder=2),
-        ax.scatter(t_d, x_d, c='#D63230', s=40, label='Mẫu', zorder=4)
-    ], "So sánh tín hiệu gốc và khôi phục"))
+        ax.plot(t_c, x_c, '#2E86AB', lw=2.5, label='Tin hieu goc', zorder=3),
+        ax.plot(t_c, x_r, '#388659', lw=2, ls='--', label='Khoi phuc', zorder=2),
+        ax.scatter(t_d, x_d, c='#D63230', s=40, label='Mau roi rac', zorder=4)
+    ], "So sánh tín hiệu gốc và tín hiệu khôi phục"))
 
 with tabs[1]:
     st.pyplot(create_plot(lambda ax: [
-        ax.plot(t_c, x_c, '#2E86AB', lw=1.2, alpha=0.35, label='Gốc'),
-        ax.stem(t_d, x_d, linefmt='r-', markerfmt='ro', basefmt='k-', label='Mẫu rời rạc')
-    ], f"Tín hiệu sau lấy mẫu ({len(t_d)} mẫu)"))
+        ax.plot(t_c, x_c, '#2E86AB', lw=1.2, alpha=0.35, label='Tham chieu goc'),
+        ax.stem(t_d, x_d, linefmt='r-', markerfmt='ro', basefmt='k-', label='Gia tri lay mau')
+    ], f"Chuỗi tín hiệu sau khi lấy mẫu ({len(t_d)} điểm)"))
 
 with tabs[2]:
-    c1, c2 = st.columns([1.5, 1])
-    with c1:
-        st.pyplot(create_plot(lambda ax: [
-            ax.fill_between(t_c, err, color='#E07A5F', alpha=0.6, label='Sai số $e(t)$'),
-            ax.axhline(0, color='k', lw=0.8)
-        ], f"Sai số khôi phục", ylim=(-max(abs(err))-0.1, max(abs(err))+0.1)))
-    with c2:
-        st.markdown("### Chỉ số thống kê")
-        df_stats = pd.DataFrame([
-            {"Chỉ số": "MSE", "Giá trị": f"{mse:.6f}"},
-            {"Chỉ số": "SNR", "Giá trị": f"{snr:.2f} dB"},
-            {"Chỉ số": "Lỗi cực đại", "Giá trị": f"{np.max(np.abs(err)):.4f}"}
-        ])
-        st.dataframe(df_stats, use_container_width=True, hide_index=True)
+    st.pyplot(create_plot(lambda ax: [
+        ax.fill_between(t_c, err, color='#E07A5F', alpha=0.6, label='Sai so e(t)'),
+        ax.axhline(0, color='k', lw=0.8)
+    ], "Đồ thị sai số tái tạo theo thời gian", ylim=(-max(abs(err))-0.05, max(abs(err))+0.05)))
+    
+    df_stats = pd.DataFrame([
+        {"Đại lượng": "Mean Squared Error (MSE)", "Giá trị": f"{mse:.6f}"},
+        {"Đại lượng": "Signal-to-Noise Ratio (SNR)", "Giá trị": f"{snr:.2f} dB"},
+        {"Đại lượng": "Sai số cực đại (Max Error)", "Giá trị": f"{np.max(np.abs(err)):.4f}"}
+    ])
+    st.table(df_stats)
 
 with tabs[3]:
     st.pyplot(create_plot(lambda ax: [
-        ax.stem(f_pos, fft_pos, linefmt='m-', markerfmt='mo', basefmt='k-', label='FFT'),
-        ax.axvline(f_nyq, color='r', ls='--', lw=2, label=f'Nyquist ({f_nyq:.1f} Hz)'),
-        ax.axvline(f_sig, color='b', ls=':', lw=1.5, label=f'f_sig ({f_sig} Hz)')
-    ], "Phổ một phía", "Tần số (Hz)", "Biên độ", (-0.5, max(f_samp * 0.6, f_sig * 3)), (0, 1.2)))
+        ax.stem(f_pos, fft_pos, linefmt='m-', markerfmt='mo', basefmt='k-', label='Pho FFT'),
+        ax.axvline(f_nyq, color='r', ls='--', lw=2, label=f'Gioi han Nyquist ({f_nyq:.1f} Hz)'),
+        ax.axvline(f_sig, color='b', ls=':', lw=1.5, label=f'Tan so goc ({f_sig} Hz)')
+    ], "Phổ biên độ một phía", "Tần số (Hz)", "Biên độ", xlim=(0, f_samp), ylim=(0, 1.2)))
 
 with tabs[4]:
     st.pyplot(create_plot(lambda ax: [
-        ax.stem(f_two, fft_two, linefmt='b-', markerfmt='bo', basefmt='k-', label='FFT'),
-        ax.axvline(f_nyq, color='r', ls='--', lw=2, label=f'+Nyq ({f_nyq:.1f} Hz)'),
-        ax.axvline(-f_nyq, color='r', ls='--', lw=2, label=f'-Nyq ({-f_nyq:.1f} Hz)'),
-        ax.axvspan(-f_nyq, f_nyq, alpha=0.06, color='g', label='Băng thông')
-    ], "Phổ hai phía (Gập méo khi Aliasing)", "Tần số (Hz)", "Biên độ", (-f_samp * 0.6, f_samp * 0.6), (0, 1.2)))
+        ax.stem(f_two, fft_two, linefmt='b-', markerfmt='bo', basefmt='k-', label='Pho FFT'),
+        ax.axvline(f_nyq, color='r', ls='--', lw=2, label=f'+Nyquist ({f_nyq:.1f} Hz)'),
+        ax.axvline(-f_nyq, color='r', ls='--', lw=2, label=f'-Nyquist ({-f_nyq:.1f} Hz)'),
+        ax.axvspan(-f_nyq, f_nyq, alpha=0.1, color='green', label='Vung Baseband')
+    ], "Phổ biên độ hai phía (Quan sát hiện tượng gập phổ)", "Tần số (Hz)", "Biên độ", xlim=(-f_samp, f_samp), ylim=(0, 1.2)))
 
 # ==========================================
 # 5. XUẤT DỮ LIỆU
 # ==========================================
 st.markdown("---")
 c1, c2 = st.columns(2)
-c1.download_button("📥 Tải Phổ FFT (.CSV)", pd.DataFrame({'Tần số': f_pos, 'Biên độ': fft_pos}).to_csv(index=False), 'fft.csv', 'text/csv')
-c2.download_button("📥 Tải Sai số (.CSV)", pd.DataFrame({'Thời gian': t_c, 'Gốc': x_c, 'Khôi phục': x_r, 'Sai số': err}).to_csv(index=False), 'sai_so.csv', 'text/csv')
+c1.download_button("Tải dữ liệu Phổ FFT (.CSV)", pd.DataFrame({'Tan so': f_pos, 'Bien do': fft_pos}).to_csv(index=False), 'fft_data.csv', 'text/csv')
+c2.download_button("Tải dữ liệu Sai số (.CSV)", pd.DataFrame({'Thoi gian': t_c, 'Goc': x_c, 'Khoi phuc': x_r, 'Sai so': err}).to_csv(index=False), 'error_data.csv', 'text/csv')
