@@ -101,7 +101,7 @@ def create_plot(plot_func, title, xlabel="Thời gian (s)", ylabel="Biên độ"
     ax.spines['left'].set_color('#777777')
     
     if ax.get_legend_handles_labels()[0]: 
-        ax.legend(fontsize=9, loc='upper right', framealpha=0.2, edgecolor='#555')
+        ax.legend(fontsize=9, loc='best', framealpha=0.2, edgecolor='#555')
     
     fig.tight_layout()
     return fig
