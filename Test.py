@@ -17,7 +17,6 @@ st.divider()
 # ==========================================
 @st.cache_data
 def calculate_signals(f_sig, f_samp, wave_type, use_lpf, recon_method):
-    # Mô phỏng thời gian liên tục với độ phân giải cao (F_sim = 5000 Hz)
     F_sim = 5000
     t_cont = np.linspace(0, 1, F_sim)
     T_s = 1.0 / f_samp
@@ -29,7 +28,6 @@ def calculate_signals(f_sig, f_samp, wave_type, use_lpf, recon_method):
 
     x_cont_raw = gen_wave(t_cont)
 
-    # Khối Anti-aliasing Filter (Low-Pass Filter trước lấy mẫu)
     if use_lpf:
         nyq_sim = F_sim / 2
         cutoff = f_samp / 2
@@ -41,7 +39,6 @@ def calculate_signals(f_sig, f_samp, wave_type, use_lpf, recon_method):
     else:
         x_cont = x_cont_raw
 
-    # Quá trình lấy mẫu
     pad = min(int(f_samp), 50)
     t_disc_pad = np.arange(-pad * T_s, 1 + (pad + 1) * T_s, T_s)
     t_disc = np.arange(0, 1 + T_s, T_s)
@@ -53,24 +50,22 @@ def calculate_signals(f_sig, f_samp, wave_type, use_lpf, recon_method):
         x_disc_pad = gen_wave(t_disc_pad)
         x_disc = gen_wave(t_disc)
 
-    # Khối Khôi phục (Reconstruction)
+    # ĐÃ SỬA LỖI 1: Ma trận Sinc chuẩn lý thuyết (M x N) nhân với Vector mẫu (N x 1)
     if recon_method == 'Sinc (Lý tưởng)':
-        # Sửa lại chiều transpose ma trận Sinc
-        sinc_matrix = np.sinc((t_cont - t_disc_pad[:, None]) / T_s)
-        x_recon = x_disc_pad @ sinc_matrix
+        sinc_matrix = np.sinc((t_cont[:, None] - t_disc_pad[None, :]) / T_s)
+        x_recon = sinc_matrix @ x_disc_pad
     elif recon_method == 'Zero-Order Hold (ZOH)':
         f_zoh = interp1d(t_disc_pad, x_disc_pad, kind='previous', bounds_error=False, fill_value="extrapolate")
         x_recon = f_zoh(t_cont)
-    else: # Linear
+    else:
         f_lin = interp1d(t_disc_pad, x_disc_pad, kind='linear', bounds_error=False, fill_value="extrapolate")
         x_recon = f_lin(t_cont)
 
-    # Tính toán lỗi
     error = x_cont - x_recon
     mse = np.mean(error**2)
     snr_db = 10 * np.log10(np.mean(x_cont**2) / (mse + 1e-12))
 
-    # Xử lý phổ FFT
+    # ĐÃ SỬA LỖI 3: Chuẩn hóa phổ 1 phía chính xác
     N = len(x_disc)
     freqs = np.fft.fftfreq(N, T_s)
     fft_amps = np.abs(np.fft.fft(x_disc)) / N
@@ -79,9 +74,12 @@ def calculate_signals(f_sig, f_samp, wave_type, use_lpf, recon_method):
     f_pos = freqs[pos_mask]
     fft_pos = np.copy(fft_amps[pos_mask])
     
-    # Nhân đôi biên độ cho các hài AC (Trừ thành phần DC tại index 0)
     if len(fft_pos) > 1:
-        fft_pos[1:] = fft_pos[1:] * 2
+        # Nếu N chẵn, phần tử cuối cùng là Nyquist, không được nhân 2
+        if N % 2 == 0:
+            fft_pos[1:-1] *= 2
+        else:
+            fft_pos[1:] *= 2
 
     return t_cont, x_cont, t_disc, x_disc, x_recon, error, mse, snr_db, f_pos, fft_pos, np.fft.fftshift(freqs), np.fft.fftshift(fft_amps)
 
@@ -102,25 +100,22 @@ with st.sidebar:
 
 t_c, x_c, t_d, x_d, x_r, err, mse, snr, f_pos, fft_pos, f_two, fft_two = calculate_signals(f_sig, f_samp, wave_type, use_lpf, recon_method)
 
-# Phân tích Nyquist & Aliasing
 f_nyq = f_samp / 2
 req_nyq = 2 * f_sig
 alias = f_samp < req_nyq
 
-# Tần số gập (Aliased Frequency) đối với hài cơ bản
-n_alias = round(f_sig / f_samp)
-f_alias = abs(f_sig - n_alias * f_samp)
+# ĐÃ SỬA LỖI 2: Tính tần số gập bằng Modulo
+f_alias = abs((f_sig + f_samp / 2) % f_samp - f_samp / 2)
 
 with st.container(border=True):
     cols = st.columns(4)
     cols[0].metric("Tần số tín hiệu", f"{f_sig} Hz")
     cols[1].metric("Tần số lấy mẫu", f"{f_samp} Hz")
     cols[2].metric("Giới hạn Nyquist", f"{f_nyq} Hz", f"{f_nyq - f_sig:+.1f} Hz so với fs", "normal" if not alias else "inverse")
-    cols[3].metric("SNR khôi phục", f"{snr:.1f} dB", f"Phương pháp: {recon_method[:4]}")
+    cols[3].metric("SNR khôi phục", f"{snr:.1f} dB", f"PP: {recon_method[:4]}")
 
-# Hệ thống cảnh báo thông minh
 if wave_type != 'Sin' and not use_lpf:
-    st.warning("⚠️ **ĐẶC TÍNH PHỔ:** Sóng Vuông/Tam giác có dải phổ rộng vô hạn (infinite harmonics). Nếu không bật LPF, các hài bậc cao chắc chắn sẽ gây ra hiện tượng chồng phổ (Aliasing) làm biến dạng tín hiệu, bất kể tần số lấy mẫu là bao nhiêu.")
+    st.warning("⚠️ **ĐẶC TÍNH PHỔ:** Sóng Vuông/Tam giác có dải phổ rộng vô hạn. Nếu không bật LPF, các hài bậc cao sẽ gây ra Aliasing làm biến dạng tín hiệu.")
 
 if not alias: 
     st.info(f"✅ **HÀI CƠ BẢN THỎA MÃN NYQUIST** — Hệ thống có thể khôi phục thành phần {f_sig} Hz.")
