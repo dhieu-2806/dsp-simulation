@@ -16,23 +16,31 @@ st.markdown("---")
 # 2. LÝ THUYẾT & CÔNG THỨC
 # ==========================================
 with st.expander("📖 Xem giải thích lý thuyết & Công thức toán học"):
-    c1, c2 = st.columns(2)
-    with c1:
+    # Hàng 1: Nyquist | Sinc
+    r1c1, r1c2 = st.columns(2)
+    with r1c1:
         st.markdown("**1. Định lý lấy mẫu Nyquist-Shannon:**")
         st.markdown(
             "Để khôi phục tín hiệu gốc mà không bị chồng phổ (Aliasing), "
             "tần số lấy mẫu $f_s$ phải thỏa mãn:"
         )
         st.latex(r"f_s \ge 2 f_{max}")
-        st.markdown("**3. Phép biến đổi Fourier rời rạc (FFT):**")
-        st.latex(r"X[k] = \sum_{n=0}^{N-1} x[n]\, e^{-j2\pi kn/N}")
-        st.markdown("Biên độ được chuẩn hóa: $|X[k]| / N$")
-    with c2:
+    with r1c2:
         st.markdown("**2. Khôi phục lý tưởng — Nội suy Sinc:**")
         st.latex(
             r"x_r(t) = \sum_{n=-\infty}^{\infty} x(nT_s)"
             r"\cdot \mathrm{sinc}\!\left(\frac{t - nT_s}{T_s}\right)"
         )
+
+    st.markdown("---")
+
+    # Hàng 2: FFT | SNR  ← ngang hàng nhau
+    r2c1, r2c2 = st.columns(2)
+    with r2c1:
+        st.markdown("**3. Phép biến đổi Fourier rời rạc (FFT):**")
+        st.latex(r"X[k] = \sum_{n=0}^{N-1} x[n]\, e^{-j2\pi kn/N}")
+        st.markdown("Biên độ được chuẩn hóa: $|X[k]| / N$")
+    with r2c2:
         st.markdown("**4. Sai số tái tạo — SNR:**")
         st.latex(
             r"\mathrm{SNR} = 10\log_{10}"
